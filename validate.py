@@ -6,7 +6,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-
+import re
 import requests
 from hashlib import md5
 
@@ -74,10 +74,10 @@ class Validate:
 
         self.service = Service('D:/Software/anaconda/envs/spider/chromedriver.exe')
 
-        self.chaojiying = Chaojiying_Client('982148620', 'w3150201126', '954644')
+        self.chaojiying = Chaojiying_Client('982148620', 'w3150201126', '963767')
 
         self.num = list(range(0, 10))
-        self.letters = list(string.ascii_lowercase)
+        self.letters = list(string.ascii_lowercase[:6])
 
     def gen_code(self):
         for code in self.ori_code_list:
@@ -85,8 +85,18 @@ class Validate:
             #     code_ = code + str(num)
             #     yield code_
             for letter in self.letters:
-                code_ = code + letter
-                yield code_
+                # if letter == 'f' or letter == 'a':
+                if letter == 'a':
+                    continue
+                print(letter)
+                for num in self.num:
+                    print(num)
+                    c_1 = letter + str(num)
+                    c_2 = str(num) + letter
+                    code_1 = re.sub(r'\*\*', c_1, code)
+                    code_2 = re.sub(r'\*\*', c_2, code)
+                    yield code_1
+                    yield code_2
 
     def get_validation_code(self):
         self.driver.find_element(By.XPATH, '//a[contains(text(), "點擊顯示")]').click()
@@ -107,10 +117,12 @@ class Validate:
         WebDriverWait(self.driver, 60).until(EC.presence_of_element_located((By.XPATH, '//div[@id="check_info_invcode"]/span')))
         if '邀請碼不存在' in self.driver.find_element(By.XPATH, '//div[@id="check_info_invcode"]/span').text:
             code_input_ele.clear()
+            time.sleep(0.5)
             return 'continue'
         elif '驗證碼不正確' in self.driver.find_element(By.XPATH, '//div[@id="check_info_invcode"]/span').text:
             self.chaojiying.ReportError(validation_code[1])
-            return self.check()
+            time.sleep(1)
+            return self.check(val_int_ele, code_input_ele)
 
             # # 重复操作
             # validation_code = self.get_validation_code()
@@ -131,10 +143,17 @@ class Validate:
             # print('邀请码已经找到：', code)
             return 'success'
 
-
-
     def auto_validate_code(self):
         self.driver = webdriver.Chrome(options=self.options, service=self.service)
+        self.driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+            "source": """
+                                                    Object.defineProperty(navigator, 'webdriver', {
+                                                      get: () => undefined
+                                                    })
+                                                  """
+        })
+        self.driver.execute_cdp_cmd("Network.enable", {})
+        self.driver.execute_cdp_cmd("Network.setExtraHTTPHeaders", {"headers": {"User-Agent": "browser1"}})
         self.driver.get(self.url)
 
         WebDriverWait(self.driver, 5).until(EC.presence_of_element_located((By.XPATH, '//input[@name="regsubmit"]')))
@@ -146,6 +165,8 @@ class Validate:
             code_input_ele.send_keys(code)
             res = self.check(val_int_ele, code_input_ele)
             if res == 'continue':
+                # time.sleep(2)
+                # self.driver.refresh()
                 continue
             elif res == 'success':
                 print('邀请码已经找到：', code)
@@ -153,7 +174,6 @@ class Validate:
         self.driver.close()
 
 
-
 if __name__ == '__main__':
-    v = Validate(['d3d3f7515c063af'])
+    v = Validate(['5261**64fe995f'])
     v.auto_validate_code()
